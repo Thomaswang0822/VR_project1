@@ -1,6 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.XR;   // XR support
 
 public class VR_Classroom : MonoBehaviour
 {
@@ -8,7 +9,7 @@ public class VR_Classroom : MonoBehaviour
     public GameObject chair, desk;  // prefab: dynamically instantiate
     public GameObject room, ground, tv; // static obj
 
-    Camera camera;
+    new Camera camera;
     bool useVR;
     Ray ray;
     Color origColor;
