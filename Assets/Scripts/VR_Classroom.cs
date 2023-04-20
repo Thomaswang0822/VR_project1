@@ -9,11 +9,14 @@ public class VR_Classroom : MonoBehaviour
     public GameObject chair, desk;  // prefab: dynamically instantiate
     public GameObject room, ground, tv; // static obj
     public Camera eyeCamera;
+    public LineRenderer rRayRenderer;
     
     // private:
     private bool useVR;
     private float step;
     private float sensitivity = 1.0f;
+    private float maxDistance = 5.0f;
+    private Ray rControllerRay;
 
 
     // Start is called before the first frame update
@@ -22,6 +25,7 @@ public class VR_Classroom : MonoBehaviour
         // Determine VR availability
         useVR = XRSettings.isDeviceActive;
         Debug.Log(string.Format("VR device (headset + controller) is detected: {0}", useVR));
+        rRayRenderer = GetComponent<LineRenderer>();
     }
 
     // Update is called once per frame
@@ -56,6 +60,8 @@ public class VR_Classroom : MonoBehaviour
 
         // Rotate the camera based on the new angles
         eyeCamera.transform.localEulerAngles = new Vector3(rotationX, rotationY, 0f);
+
+        // rRayRenderer.SetPosition(1, eyeCamera.transform.position + eyeCamera.transform.forward * maxDistance);
     }
 
     // helper function: move player (camera) around
@@ -84,4 +90,28 @@ public class VR_Classroom : MonoBehaviour
 
         eyeCamera.transform.position += deltaPos;
     }
+
+
+    // helper function: shoot a Ray from right-hand (Secondary) controller
+    // it updates rControllerRay
+    // Only available in VR mode
+    void updateRightRay() {
+        if (!useVR) {return;}
+
+        // Get controller position and rotation
+        Vector3 controllerPosition = OVRInput.GetLocalControllerPosition(OVRInput.Controller.RTouch);
+        Quaternion controllerRotation = OVRInput.GetLocalControllerRotation(OVRInput.Controller.RTouch);
+
+        // Calculate ray direction
+        Vector3 rayDirection = controllerRotation * Vector3.forward;
+
+        // Update the global ray's position and direction
+        rControllerRay.origin = controllerPosition;
+        rControllerRay.direction = rayDirection;
+
+        // Set the line renderer's positions to match the ray
+        rRayRenderer.SetPosition(0, rControllerRay.origin);
+        rRayRenderer.SetPosition(1, rControllerRay.origin + rControllerRay.direction * maxDistance);
+    }
+    
 }
