@@ -357,6 +357,7 @@ MonoBehaviour:
   tv: {fileID: 483319889}
   eyeCamera: {fileID: 1266744430}
   rRayRenderer: {fileID: 431529537}
+  chessPrefab: {fileID: 4352668662936965590, guid: 5b2febef9538fb34e972bb0070c107a5, type: 3}
 --- !u!4 &431529536
 Transform:
   m_ObjectHideFlags: 0

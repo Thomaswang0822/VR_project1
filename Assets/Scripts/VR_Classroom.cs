@@ -6,12 +6,15 @@ using UnityEngine.XR;   // XR support
 public class VR_Classroom : MonoBehaviour
 {
     // public:
-    public GameObject chair, desk;  // prefab: dynamically instantiate
+    public GameObject chairPrefab, deskPrefab;  // prefab: dynamically instantiate
     public GameObject room, ground, tv; // static obj
     public Camera eyeCamera;
     public LineRenderer rRayRenderer;
+    public GameObject chessPrefab;    // To indicate the teleport destination
     
     // private:
+    private GameObject chess;
+    private GameObject chair, desk;
     private bool useVR;
     private float step;
     private Ray rRay;
@@ -21,6 +24,7 @@ public class VR_Classroom : MonoBehaviour
     // where we grab a point along the rRay to update orientation
     private const float focusDistance = 3.0f;
     private const float eyeY = 1.5f;
+    private const float chessY = 0.2f;
 
 
     // Start is called before the first frame update
@@ -30,6 +34,8 @@ public class VR_Classroom : MonoBehaviour
         useVR = XRSettings.isDeviceActive;
         Debug.Log(string.Format("VR device (headset + controller) is detected: {0}", useVR));
         rRayRenderer = GetComponent<LineRenderer>();
+
+        chess = Instantiate(chessPrefab);
     }
 
     // Update is called once per frame
@@ -37,6 +43,7 @@ public class VR_Classroom : MonoBehaviour
     {
         // Define step value for animation
         step = 5.0f * Time.deltaTime;
+        chess.SetActive(false);  // invisible by default
 
         teleport();
         updateRightRay();
@@ -144,16 +151,17 @@ public class VR_Classroom : MonoBehaviour
             Debug.Log("Hit normal: " + hit.normal);
 
             if (Mathf.Abs(hit.point.y) < 1e-2) { // close to ground, can teleport
-                // TODO: draw a small circle at y=0 to indicate position after teleport
-                
-
-                // teleport if user press down left-hand Y button
+                // draw a chess to indicate teleport destination
                 if (OVRInput.GetDown(OVRInput.Button.Four)) {
-                    eyeCamera.transform.position = hit.point;
-                    eyeCamera.transform.position.y = eyeY;
+                    chess.transform.position = new Vector3(hit.point.x, chessY, hit.point.z);
+                }
+                // teleport if user release left-hand Y button
+                if (OVRInput.GetUp(OVRInput.Button.Four)) {
+                    eyeCamera.transform.position = new Vector3(hit.point.x, eyeY, hit.point.z);
                 }
             }
         }
+        return;
     }
     
 }
