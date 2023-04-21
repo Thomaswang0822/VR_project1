@@ -14,9 +14,13 @@ public class VR_Classroom : MonoBehaviour
     // private:
     private bool useVR;
     private float step;
-    private float sensitivity = 1.0f;
-    private float maxDistance = 5.0f;
-    private Ray rControllerRay;
+    private Ray rRay;
+    private const float sensitivity = 1.0f;
+    // max distance rRay can go
+    private const float maxDistance = 5.0f;
+    // where we grab a point along the rRay to update orientation
+    private const float focusDistance = 3.0f;
+    private const float eyeY = 1.5f;
 
 
     // Start is called before the first frame update
@@ -34,6 +38,8 @@ public class VR_Classroom : MonoBehaviour
         // Define step value for animation
         step = 5.0f * Time.deltaTime;
 
+        teleport();
+        updateRightRay();
         updateLookat();
         moveAround();
     }
@@ -42,7 +48,17 @@ public class VR_Classroom : MonoBehaviour
     // helper function: update camera orientation (forward/lookat direction)
     void updateLookat() {
         // Oculus SDK will auto update headset camera
-        if (useVR) {return;}
+        // UPDATE: not allowed to use headset camera to look around
+        if (useVR) {
+            // update lookat to if user press down left-hand X button
+            if (OVRInput.GetDown(OVRInput.Button.Three)) {
+                // grab a focus point
+                Vector3 focusPt = rRay.GetPoint(focusDistance);
+                // update forward direction
+                eyeCamera.transform.forward =  Vector3.Normalize(focusPt - eyeCamera.transform.position);
+            }
+            return;
+        }
 
         // Get the horizontal and vertical axis input from the mouse cursor
         float horizontalInput = Input.GetAxis("Mouse X");
@@ -106,12 +122,38 @@ public class VR_Classroom : MonoBehaviour
         Vector3 rayDirection = controllerRotation * Vector3.forward;
 
         // Update the global ray's position and direction
-        rControllerRay.origin = controllerPosition;
-        rControllerRay.direction = rayDirection;
+        rRay.origin = controllerPosition;
+        rRay.direction = rayDirection;
 
         // Set the line renderer's positions to match the ray
-        rRayRenderer.SetPosition(0, rControllerRay.origin);
-        rRayRenderer.SetPosition(1, rControllerRay.origin + rControllerRay.direction * maxDistance);
+        rRayRenderer.SetPosition(0, rRay.origin);
+        rRayRenderer.SetPosition(1, rRay.origin + rRay.direction * maxDistance);
+    }
+
+    // movement is limited to button; no joystick allowed
+    void teleport() {
+        if (!useVR) {return;}
+
+        // Perform raycast
+        RaycastHit hit;
+        if (Physics.Raycast(rRay, out hit, maxDistance))
+        {
+            // Debug log information about the hit object
+            Debug.Log("Hit object: " + hit.collider.gameObject.name);
+            Debug.Log("Hit point: " + hit.point);
+            Debug.Log("Hit normal: " + hit.normal);
+
+            if (Mathf.Abs(hit.point.y) < 1e-2) { // close to ground, can teleport
+                // TODO: draw a small circle at y=0 to indicate position after teleport
+                
+
+                // teleport if user press down left-hand Y button
+                if (OVRInput.GetDown(OVRInput.Button.Four)) {
+                    eyeCamera.transform.position = hit.point;
+                    eyeCamera.transform.position.y = eyeY;
+                }
+            }
+        }
     }
     
 }
