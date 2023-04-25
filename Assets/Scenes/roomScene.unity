@@ -38,7 +38,7 @@ RenderSettings:
   m_ReflectionIntensity: 1
   m_CustomReflection: {fileID: 0}
   m_Sun: {fileID: 0}
-  m_IndirectSpecularColor: {r: 0.18028378, g: 0.22571412, b: 0.30692285, a: 1}
+  m_IndirectSpecularColor: {r: 0.18028326, g: 0.22571333, b: 0.30692202, a: 1}
   m_UseRadianceAmbientProbe: 0
 --- !u!157 &3
 LightmapSettings:
@@ -332,7 +332,7 @@ GameObject:
   - component: {fileID: 431529535}
   - component: {fileID: 431529537}
   m_Layer: 0
-  m_Name: DummyObject
+  m_Name: Classroom Script
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -350,8 +350,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 2d96b2630b74c384c88e6cbe3e719e41, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  chair: {fileID: 97787563614322116, guid: 870e7669813d4da499a30da7aa36df3a, type: 3}
-  desk: {fileID: 3219345334615643462, guid: 35f3b6d9865a6ca409784b390085641d, type: 3}
+  chairPrefab: {fileID: 0}
+  deskPrefab: {fileID: 0}
   room: {fileID: 118675304}
   ground: {fileID: 663150245}
   tv: {fileID: 483319889}

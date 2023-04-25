@@ -17,7 +17,6 @@ public class VR_Classroom : MonoBehaviour
     private GameObject chair, desk;
     private bool useVR;
     private float step;
-    private Ray rRay;
     private const float sensitivity = 1.0f;
     // max distance rRay can go
     private const float maxDistance = 5.0f;
@@ -26,6 +25,12 @@ public class VR_Classroom : MonoBehaviour
     private const float eyeY = 1.5f;
     private const float chessY = 0.2f;
 
+    // raycasting stuff
+    private Ray rRay;
+    private Ray rPrev;
+    // the currently selected object (if any)
+    private GameObject selected;
+    private float distance;
 
     // Start is called before the first frame update
     void Start()
@@ -45,10 +50,20 @@ public class VR_Classroom : MonoBehaviour
         step = 5.0f * Time.deltaTime;
         chess.SetActive(false);  // invisible by default
 
+        // updateRightRay(); // we do this in FixedUpdate now
         teleport();
-        updateRightRay();
         updateLookat();
         moveAround();
+    }
+
+    // FixedUpdate is called once per physics tick
+    // We need to do two things each tick: update our controller ray, and use this info
+    // for object manipulation
+    void FixedUpdate() {
+        // First, we update the right controller ray using the debug fn defined below
+        updateRightRay();
+        // Then, we do our object manipulation processing.
+        manipulateObject();
     }
 
 
@@ -121,6 +136,8 @@ public class VR_Classroom : MonoBehaviour
     void updateRightRay() {
         if (!useVR) {return;}
 
+        rPrev = rRay;
+
         // Get controller position and rotation
         Vector3 controllerPosition = OVRInput.GetLocalControllerPosition(OVRInput.Controller.RTouch);
         Quaternion controllerRotation = OVRInput.GetLocalControllerRotation(OVRInput.Controller.RTouch);
@@ -135,6 +152,61 @@ public class VR_Classroom : MonoBehaviour
         // Set the line renderer's positions to match the ray
         rRayRenderer.SetPosition(0, rRay.origin);
         rRayRenderer.SetPosition(1, rRay.origin + rRay.direction * maxDistance);
+    }
+
+    // Manipulate the object currently pointed at.
+    void manipulateObject() {
+        if (!useVR || rRay == null) {return;}
+
+        // If the trigger is being pressed and we hit something...
+        // TODO: we could share the raycasthit w/ teleport here, but meh
+        RaycastHit hit;
+        if (OVRInput.GetDown(OVRInput.Button.PrimaryIndexTrigger) && Physics.Raycast(rRay, out hit, maxDistance)) {
+            // We're pointing at an object. There are two possibilities.
+
+            if (selected == null) {
+                // 1) We haven't selected an object before
+                selected = hit.collider.gameObject;
+                distance = hit.distance;
+
+                // Our goal is to skewer the object. In other words, the object
+                // should maintain the same distance and orientation relative
+                // to the ray.
+                // TODO: set color
+            } else {
+                // 2) We have (i.e. currently moving an object)
+                // We assume that the hit GameObject is the same as selected.
+                // (If this isn't true something horrible has broken)
+                // We now need to move the object.
+                RigidBody rb = selected.GetComponent<Rigidbody>();
+                if (rb != null) {
+                    rb.isKinematic = true;
+
+                    // Move!
+                    if (rPrev != null) {
+                        Vector3 diff = rRay.GetPoint(distance) - rPrev.GetPoint(distance);
+                        // Velocity vector is new ray at distance - old ray at distance
+                        rb.MovePosition(diff);
+                        // For angle, we first calculate the straight up angle between the two rays
+                        // (we negate since we want to rotate in opposite direction)
+                        float angle = -Vector3.Angle(rPrev, rRay);
+                        // The angular velocity is this angle multiplied by the normalized version of our
+                        // diff vector (the idea being if we move one unit purely in one axis, that
+                        // axis gets all the angular velocity)
+                        rb.MoveRotation(angle * Vector3.Normalize(diff));
+                    }
+                }
+            }
+        } else {
+            if (selected != null) {
+                // Disable isKinematic on the selected object
+                RigidBody rb = selected.GetComponent<Rigidbody>();
+                if (rb != null) {
+                    rb.isKinematic = false;
+                }
+            }
+            selected = null
+        }
     }
 
     // movement is limited to button; no joystick allowed
