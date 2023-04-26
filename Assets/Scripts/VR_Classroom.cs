@@ -154,25 +154,42 @@ public class VR_Classroom : MonoBehaviour
         rRayRenderer.SetPosition(1, rRay.origin + rRay.direction * maxDistance);
     }
 
-    // Manipulate the object currently pointed at.
+    // Helper function to handle object spawning and manipulation.
+    // To manipulate an object, a user points at an object and holds the right trigger;
+    // a ray coming from the controller will "skewer" the object and manipulate it
+    // that way
+    // To spawn an object, a user holds the left trigger, then pushes the right trigger.
+    // This will spawn an object and allow for manipulation of the new object so long
+    // as the right trigger is being held.
     void manipulateObject() {
         if (!useVR) {return;}
 
         // If the trigger is being pressed and we hit something...
-        // TODO: we could share the raycasthit w/ teleport here, but meh
         RaycastHit hit;
         if (OVRInput.GetDown(OVRInput.Button.PrimaryIndexTrigger) && Physics.Raycast(rRay, out hit, maxDistance)) {
             // We're pointing at an object. There are two possibilities.
 
             if (selected == null) {
                 // 1) We haven't selected an object before
-                selected = hit.collider.gameObject;
-                distance = hit.distance;
+                // In this case, we check if the secondary trigger is being pressed
+                // If it is, we spawn a new object at a set distance and set that as the
+                // selected object.
+                // If it isn't, just do the hit detection as before.
+                if (OVRInput.GetDown(OVRInput.Button.SecondaryIndexTrigger)) {
+                    // TODO: allow user to choose what to spawn. We need to be able to choose b/w two objs
+                    // We spawn the object focusDistance units away from the ray with an identity rotation.
+                    selected = Object.Instantiate(tv, rRay.GetPoint(focusDistance), Quaternion.identity);
+                    distance = focusDistance;
+                } else {
+                    // Our goal is to skewer the object. In other words, the object
+                    // should maintain the same distance and orientation relative
+                    // to the ray.
+                    selected = hit.collider.gameObject;
+                    distance = hit.distance;
+                }
 
-                // Our goal is to skewer the object. In other words, the object
-                // should maintain the same distance and orientation relative
-                // to the ray.
                 // TODO: set color
+                // (part 5 of the reqs goes here)
             } else {
                 // 2) We have (i.e. currently moving an object)
                 // We assume that the hit GameObject is the same as selected.
