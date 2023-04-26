@@ -29,7 +29,7 @@ public class VR_Classroom : MonoBehaviour
     private Ray rRay;
     private Ray rPrev;
     // the currently selected object (if any)
-    private GameObject selected;
+    private GameObject? selected;
     private float distance;
 
     // Start is called before the first frame update
@@ -156,7 +156,7 @@ public class VR_Classroom : MonoBehaviour
 
     // Manipulate the object currently pointed at.
     void manipulateObject() {
-        if (!useVR || rRay == null) {return;}
+        if (!useVR) {return;}
 
         // If the trigger is being pressed and we hit something...
         // TODO: we could share the raycasthit w/ teleport here, but meh
@@ -178,34 +178,33 @@ public class VR_Classroom : MonoBehaviour
                 // We assume that the hit GameObject is the same as selected.
                 // (If this isn't true something horrible has broken)
                 // We now need to move the object.
-                RigidBody rb = selected.GetComponent<Rigidbody>();
+                Rigidbody rb = selected.GetComponent<Rigidbody>();
                 if (rb != null) {
                     rb.isKinematic = true;
 
                     // Move!
-                    if (rPrev != null) {
-                        Vector3 diff = rRay.GetPoint(distance) - rPrev.GetPoint(distance);
-                        // Velocity vector is new ray at distance - old ray at distance
-                        rb.MovePosition(diff);
-                        // For angle, we first calculate the straight up angle between the two rays
-                        // (we negate since we want to rotate in opposite direction)
-                        float angle = -Vector3.Angle(rPrev, rRay);
-                        // The angular velocity is this angle multiplied by the normalized version of our
-                        // diff vector (the idea being if we move one unit purely in one axis, that
-                        // axis gets all the angular velocity)
-                        rb.MoveRotation(angle * Vector3.Normalize(diff));
-                    }
+                    Vector3 diff = rRay.GetPoint(distance) - rPrev.GetPoint(distance);
+                    // Velocity vector is new ray at distance - old ray at distance
+                    rb.MovePosition(diff);
+                    // For angle, we first calculate the straight up angle between the two rays
+                    // (we negate since we want to rotate in opposite direction)
+                    float angle = -Vector3.Angle(rPrev.GetPoint(distance), rRay.GetPoint(distance));
+                    // The angular velocity is this angle multiplied by the normalized version of our
+                    // diff vector (the idea being if we move one unit purely in one axis, that
+                    // axis gets all the angular velocity)
+                    Vector3 val = angle * Vector3.Normalize(diff);
+                    rb.MoveRotation(Quaternion.Euler(val.x, val.y, val.z));
                 }
             }
         } else {
             if (selected != null) {
                 // Disable isKinematic on the selected object
-                RigidBody rb = selected.GetComponent<Rigidbody>();
+                Rigidbody rb = selected.GetComponent<Rigidbody>();
                 if (rb != null) {
                     rb.isKinematic = false;
                 }
             }
-            selected = null
+            selected = null;
         }
     }
 
