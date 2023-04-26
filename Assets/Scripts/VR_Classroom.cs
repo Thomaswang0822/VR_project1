@@ -56,6 +56,9 @@ public class VR_Classroom : MonoBehaviour
         moveAround();
     }
 
+    // TODO: Maybe we move the rRay stuff to Update and accumulate movement/rotation
+    //       forces that apply at FixedUpdate.
+    //       Debug once we can run on a headset
     // FixedUpdate is called once per physics tick
     // We need to do two things each tick: update our controller ray, and use this info
     // for object manipulation
