@@ -5,18 +5,32 @@ using UnityEngine.XR;   // XR support
 
 public class VR_Classroom : MonoBehaviour
 {
-    // public:
+    // *********** public:
     public GameObject chairPrefab, deskPrefab;  // prefab: dynamically instantiate
     public GameObject room, ground, tv; // static obj
     public Camera eyeCamera;
     public LineRenderer rRayRenderer;
     public GameObject chessPrefab;    // To indicate the teleport destination
     
-    // private:
+    // *********** private:
     private GameObject chess;
     private GameObject chair, desk;
     private bool useVR;
     private float step;
+    // raycasting stuff
+    private Ray rRay;
+    private Ray rPrev;
+    #nullable enable
+    // the currently selected object (if any)
+    private GameObject? selected;
+    private float distance;
+    // change selected (a table or chair) to this half-transparent red
+    private Color colorSelected = new Color(1f, 0f, 0f, 0.5f);
+    // need to remember original to restore later
+    private Material? origMaterial;
+    #nullable disable
+
+    // *********** constants
     private const float sensitivity = 1.0f;
     // max distance rRay can go
     private const float maxDistance = 5.0f;
@@ -25,12 +39,7 @@ public class VR_Classroom : MonoBehaviour
     private const float eyeY = 1.5f;
     private const float chessY = 0.2f;
 
-    // raycasting stuff
-    private Ray rRay;
-    private Ray rPrev;
-    // the currently selected object (if any)
-    private GameObject? selected;
-    private float distance;
+    
 
     // Start is called before the first frame update
     void Start()
@@ -158,7 +167,8 @@ public class VR_Classroom : MonoBehaviour
     }
 
     // Helper function to handle object spawning and manipulation.
-    // To manipulate an object, a user points at an object and holds the right trigger;
+    // Left: primary; Right: secondary
+    // To manipulate an object, a user points at an object and holds the left trigger;
     // a ray coming from the controller will "skewer" the object and manipulate it
     // that way
     // To spawn an object, a user holds the left trigger, then pushes the right trigger.
@@ -173,7 +183,7 @@ public class VR_Classroom : MonoBehaviour
             // We're pointing at an object. There are two possibilities.
 
             if (selected == null) {
-                // 1) We haven't selected an object before
+                // 1) We haven't selected an object right now
                 // In this case, we check if the secondary trigger is being pressed
                 // If it is, we spawn a new object at a set distance and set that as the
                 // selected object.
@@ -197,6 +207,18 @@ public class VR_Classroom : MonoBehaviour
                 // 2) We have (i.e. currently moving an object)
                 // We assume that the hit GameObject is the same as selected.
                 // (If this isn't true something horrible has broken)
+
+                // Change its color and opacity
+                // happens once right after you make a new selection
+                if (origMaterial == null) {
+                    Material selectedMaterial = selected.GetComponent<Renderer>().material;
+                    // store a copy
+                    origMaterial = new Material(selectedMaterial);
+                    // half-transparent red
+                    selectedMaterial.color = colorSelected;
+                }
+                
+
                 // We now need to move the object.
                 Rigidbody rb = selected.GetComponent<Rigidbody>();
                 if (rb != null) {
@@ -223,6 +245,10 @@ public class VR_Classroom : MonoBehaviour
                 if (rb != null) {
                     rb.isKinematic = false;
                 }
+
+                // restore original material
+                selected.GetComponent<Renderer>().material = origMaterial;
+                origMaterial = null;
             }
             selected = null;
         }
