@@ -34,7 +34,7 @@ public class VR_Classroom : MonoBehaviour
     // *********** constants
     private const float sensitivity = 1.0f;
     // max distance rRay can go
-    private const float maxDistance = 5.0f;
+    private const float maxDistance = 10.0f;
     // where we grab a point along the rRay to update orientation
     private const float focusDistance = 3.0f;
     private const float eyeY = 1.5f;
@@ -52,6 +52,8 @@ public class VR_Classroom : MonoBehaviour
 
         chess = Instantiate(chessPrefab);
         chess.SetActive(false);  // invisible by default
+
+        selected = null;
     }
 
     // Update is called once per frame
@@ -64,6 +66,8 @@ public class VR_Classroom : MonoBehaviour
         updateLookat();
         moveAround();
         teleport();
+        // Then, we do our object manipulation processing.
+        manipulateObject();
     }
 
     // TODO: Maybe we move the rRay stuff to Update and accumulate movement/rotation
@@ -75,8 +79,7 @@ public class VR_Classroom : MonoBehaviour
     void FixedUpdate() {
         // First, we update the right controller ray using the debug fn defined below
         updateRightRay();
-        // Then, we do our object manipulation processing.
-        manipulateObject();
+        
         
         
         
@@ -194,7 +197,7 @@ public class VR_Classroom : MonoBehaviour
                 if (OVRInput.GetDown(OVRInput.Button.SecondaryIndexTrigger)) {
                     // TODO: allow user to choose what to spawn. We need to be able to choose b/w two objs
                     // We spawn the object focusDistance units away from the ray with an identity rotation.
-                    selected = Object.Instantiate(tv, rRay.GetPoint(focusDistance), Quaternion.identity);
+                    selected = Object.Instantiate(chessPrefab, rRay.GetPoint(focusDistance), Quaternion.identity);
                     distance = focusDistance;
                 } else {
                     // Our goal is to skewer the object. In other words, the object
