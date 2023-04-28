@@ -25,6 +25,10 @@ public class VR_Classroom : MonoBehaviour
     // the currently selected object (if any)
     private GameObject? selected;
     private float distance;
+
+    private Vector3 accXf = new Vector3(0.0f, 0.0f, 0.0f);
+    private Vector3 accRot = new Vector3(0.0f, 0.0f, 0.0f);
+
     // change selected (a table or chair) to this half-transparent red
     private Color colorSelected = new Color(1f, 0f, 0f, 0.5f);
     // need to remember original to restore later
@@ -84,7 +88,16 @@ public class VR_Classroom : MonoBehaviour
     // We need to do two things each tick: update our controller ray, and use this info
     // for object manipulation
     void FixedUpdate() {
-        
+        // if (selected != null) {
+        //     Rigidbody rb = selected.GetComponent<Rigidbody>();
+        //     if (rb != null) {
+        //         rb.MovePosition(selected.transform.position + accXf * Time.deltaTime);
+        //         rb.MoveRotation(Quaternion.Euler(accRot.x, accRot.y, accRot.z));
+
+        //         accXf = new Vector3(0.0f, 0.0f, 0.0f);
+        //         accRot = new Vector3(0.0f, 0.0f, 0.0f);
+        //     }
+        // }
     }
 
 
@@ -175,6 +188,12 @@ public class VR_Classroom : MonoBehaviour
         rRayRenderer.SetPosition(1, rRay.origin + rRay.direction * maxDistance);
     }
 
+    void OnGUI()
+    {
+        
+        GUI.Label(new Rect(10, 10, 100, 20), "Hello World! " + selected);
+    }
+
     // Helper function to handle object spawning and manipulation.
     // Left: primary; Right: secondary
     // To manipulate an object, a user points at an object and holds the left trigger;
@@ -196,10 +215,52 @@ public class VR_Classroom : MonoBehaviour
         // Next, do manip test
         RaycastHit hit;
         if (Physics.Raycast(rRay, out hit, maxDistance) && OVRInput.Get(OVRInput.RawButton.RIndexTrigger)) {
-            if (hit.collider.gameObject.CompareTag("Movable")) {
-                selected = hit.collider.gameObject;
-                distance = hit.distance;
+            selected = hit.collider.gameObject;
+            distance = hit.distance;
+
+            // // Change its color and opacity
+            // // happens once right after you make a new selection
+            // if (origMaterial == null) {
+            //     Material selectedMaterial = selected.GetComponent<Renderer>().material;
+            //     // store a copy
+            //     origMaterial = new Material(selectedMaterial);
+            //     // half-transparent red
+            //     selectedMaterial.color = colorSelected;
+            // }
+
+            // // We now need to move the object.
+            // Rigidbody rb = selected.GetComponent<Rigidbody>();
+            // // if (rb != null && hit.collider.gameObject.CompareTag("Movable")) {
+            //     // // Move!
+            //     // Vector3 diff = rRay.GetPoint(distance) - rPrev.GetPoint(distance);
+            //     // // Velocity vector is new ray at distance - old ray at distance
+            //     // accXf += diff;
+            //     // // For angle, we first calculate the straight up angle between the two rays
+            //     // // (we negate since we want to rotate in opposite direction)
+            //     // float angle = -Vector3.Angle(rPrev.GetPoint(distance), rRay.GetPoint(distance));
+            //     // // The angular velocity is this angle multiplied by the normalized version of our
+            //     // // diff vector (the idea being if we move one unit purely in one axis, that
+            //     // // axis gets all the angular velocity)
+            //     // accRot += angle * Vector3.Normalize(diff);
+
+            //     // FIXME: debug
+            //     // selected.transform.position = rRay.GetPoint(distance);
+            // // }
+
+            selected.transform.position = rRay.GetPoint(focusDistance);
+        } else {
+            if (selected != null) {
+                // restore original material
+                selected.GetComponent<Renderer>().material = origMaterial;
+                origMaterial = null;
+
+                Rigidbody rb = selected.GetComponent<Rigidbody>();
+                if (rb != null) {
+                    rb.isKinematic = false;
+                }
             }
+
+            selected = null;
         }
 
         // If the trigger is being pressed and we hit something...
