@@ -6,6 +6,7 @@ using UnityEngine.XR;   // XR support
 public class VR_Classroom : MonoBehaviour
 {
     // *********** public:
+    public GameObject CamRig;
     public GameObject chairPrefab, deskPrefab;  // prefab: dynamically instantiate
     public GameObject room, ground, tv; // static obj
     public Camera eyeCamera;
@@ -50,6 +51,7 @@ public class VR_Classroom : MonoBehaviour
         rRayRenderer = GetComponent<LineRenderer>();
 
         chess = Instantiate(chessPrefab);
+        chess.SetActive(false);  // invisible by default
     }
 
     // Update is called once per frame
@@ -57,12 +59,11 @@ public class VR_Classroom : MonoBehaviour
     {
         // Define step value for animation
         step = 5.0f * Time.deltaTime;
-        chess.SetActive(false);  // invisible by default
 
         // updateRightRay(); // we do this in FixedUpdate now
-        teleport();
         updateLookat();
         moveAround();
+        teleport();
     }
 
     // TODO: Maybe we move the rRay stuff to Update and accumulate movement/rotation
@@ -76,6 +77,9 @@ public class VR_Classroom : MonoBehaviour
         updateRightRay();
         // Then, we do our object manipulation processing.
         manipulateObject();
+        
+        
+        
     }
 
 
@@ -89,7 +93,7 @@ public class VR_Classroom : MonoBehaviour
                 // grab a focus point
                 Vector3 focusPt = rRay.GetPoint(focusDistance);
                 // update forward direction
-                eyeCamera.transform.forward =  Vector3.Normalize(focusPt - eyeCamera.transform.position);
+                CamRig.transform.forward =  Vector3.Normalize(focusPt - CamRig.transform.position);
             }
             return;
         }
@@ -109,7 +113,7 @@ public class VR_Classroom : MonoBehaviour
         rotationX = Mathf.Clamp(rotationX, -85f, 85f);
 
         // Rotate the camera based on the new angles
-        eyeCamera.transform.localEulerAngles = new Vector3(rotationX, rotationY, 0f);
+        CamRig.transform.localEulerAngles = new Vector3(rotationX, rotationY, 0f);
 
         // rRayRenderer.SetPosition(1, eyeCamera.transform.position + eyeCamera.transform.forward * maxDistance);
     }
@@ -127,7 +131,6 @@ public class VR_Classroom : MonoBehaviour
             // returns a Vector2 of the primary (Left) thumbstick’s current state.
             // (X/Y range of -1.0f to 1.0f)
             Vector2 deltaXY = OVRInput.Get(OVRInput.Axis2D.PrimaryThumbstick);
-
             deltaPos = (forward * deltaXY.y + right * deltaXY.x) * step;
 
         } else { // use arrow keys
@@ -138,7 +141,7 @@ public class VR_Classroom : MonoBehaviour
             deltaPos = (forward * verticalInput + right * horizontalInput) * step;
         }
 
-        eyeCamera.transform.position += deltaPos;
+        CamRig.transform.position += deltaPos;
     }
 
 
@@ -158,7 +161,7 @@ public class VR_Classroom : MonoBehaviour
         Vector3 rayDirection = controllerRotation * Vector3.forward;
 
         // Update the global ray's position and direction
-        rRay.origin = controllerPosition;
+        rRay.origin = eyeCamera.transform.position + new Vector3(0.25f, -0.25f, 0.25f);
         rRay.direction = rayDirection;
 
         // Set the line renderer's positions to match the ray
@@ -267,14 +270,18 @@ public class VR_Classroom : MonoBehaviour
             Debug.Log("Hit point: " + hit.point);
             Debug.Log("Hit normal: " + hit.normal);
 
-            if (Mathf.Abs(hit.point.y) < 1e-2) { // close to ground, can teleport
+            if (true/* Mathf.Abs(hit.point.y) < 1e-2 */) { // close to ground, can teleport
                 // draw a chess to indicate teleport destination
                 if (OVRInput.GetDown(OVRInput.Button.Four)) {
                     chess.transform.position = new Vector3(hit.point.x, chessY, hit.point.z);
+                    chess.transform.rotation = Quaternion.identity;
+                    chess.SetActive(true);
                 }
                 // teleport if user release left-hand Y button
                 if (OVRInput.GetUp(OVRInput.Button.Four)) {
-                    eyeCamera.transform.position = new Vector3(hit.point.x, eyeY, hit.point.z);
+                    CamRig.transform.position = new Vector3(hit.point.x, eyeY, hit.point.z);
+                    // hide chess indicator after transform
+                    chess.SetActive(false);
                 }
             }
         }
