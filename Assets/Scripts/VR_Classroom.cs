@@ -66,7 +66,14 @@ public class VR_Classroom : MonoBehaviour
         updateLookat();
         moveAround();
         teleport();
-        // Then, we do our object manipulation processing.
+        
+        // We do controller processing and object manip here
+        // Changes are accumulated, then applied in FixedUpdate()
+
+        // First, we update the right controller ray using the debug fn defined below
+        updateRightRay();
+
+        // manip object
         manipulateObject();
     }
 
@@ -77,11 +84,6 @@ public class VR_Classroom : MonoBehaviour
     // We need to do two things each tick: update our controller ray, and use this info
     // for object manipulation
     void FixedUpdate() {
-        // First, we update the right controller ray using the debug fn defined below
-        updateRightRay();
-        
-        
-        
         
     }
 
@@ -164,7 +166,8 @@ public class VR_Classroom : MonoBehaviour
         Vector3 rayDirection = controllerRotation * Vector3.forward;
 
         // Update the global ray's position and direction
-        rRay.origin = eyeCamera.transform.position + new Vector3(0.25f, -0.25f, 0.25f);
+        // rRay.origin = eyeCamera.transform.position + new Vector3(0.25f, -0.25f, 0.25f);
+        rRay.origin = eyeCamera.transform.position + controllerPosition;
         rRay.direction = rayDirection;
 
         // Set the line renderer's positions to match the ray
@@ -183,81 +186,97 @@ public class VR_Classroom : MonoBehaviour
     void manipulateObject() {
         if (!useVR) {return;}
 
-        // If the trigger is being pressed and we hit something...
+        // First, do object spawning test
+        if (OVRInput.Get(OVRInput.RawButton.LIndexTrigger)) {
+            chess.transform.position = rRay.GetPoint(focusDistance);
+            chess.transform.rotation = Quaternion.identity;
+            chess.SetActive(true);
+        }
+
+        // Next, do manip test
         RaycastHit hit;
-        if (OVRInput.GetDown(OVRInput.Button.PrimaryIndexTrigger) && Physics.Raycast(rRay, out hit, maxDistance)) {
-            // We're pointing at an object. There are two possibilities.
+        if (Physics.Raycast(rRay, out hit, maxDistance) && OVRInput.Get(OVRInput.RawButton.RIndexTrigger)) {
+            if (hit.collider.gameObject.CompareTag("Movable")) {
+                selected = hit.collider.gameObject;
+                distance = hit.distance;
+            }
+        }
 
-            if (selected == null) {
-                // 1) We haven't selected an object right now
-                // In this case, we check if the secondary trigger is being pressed
-                // If it is, we spawn a new object at a set distance and set that as the
-                // selected object.
-                // If it isn't, just do the hit detection as before.
-                if (OVRInput.GetDown(OVRInput.Button.SecondaryIndexTrigger)) {
-                    // TODO: allow user to choose what to spawn. We need to be able to choose b/w two objs
-                    // We spawn the object focusDistance units away from the ray with an identity rotation.
-                    selected = Object.Instantiate(chessPrefab, rRay.GetPoint(focusDistance), Quaternion.identity);
-                    distance = focusDistance;
-                } else {
-                    // Our goal is to skewer the object. In other words, the object
-                    // should maintain the same distance and orientation relative
-                    // to the ray.
-                    selected = hit.collider.gameObject;
-                    distance = hit.distance;
-                }
+        // If the trigger is being pressed and we hit something...
+        // RaycastHit hit;
+        // if (OVRInput.GetDown(OVRInput.Button.One) && Physics.Raycast(rRay, out hit, maxDistance)) {
+        //     // We're pointing at an object. There are two possibilities.
 
-                // TODO: set color
-                // (part 5 of the reqs goes here)
-            } else {
-                // 2) We have (i.e. currently moving an object)
-                // We assume that the hit GameObject is the same as selected.
-                // (If this isn't true something horrible has broken)
+        //     if (selected == null) {
+        //         // 1) We haven't selected an object right now
+        //         // In this case, we check if the secondary trigger is being pressed
+        //         // If it is, we spawn a new object at a set distance and set that as the
+        //         // selected object.
+        //         // If it isn't, just do the hit detection as before.
+        //         if (OVRInput.GetDown(OVRInput.Button.Two)) {
+        //             // TODO: allow user to choose what to spawn. We need to be able to choose b/w two objs
+        //             // We spawn the object focusDistance units away from the ray with an identity rotation.
+        //             selected = Object.Instantiate(chessPrefab, rRay.GetPoint(focusDistance), Quaternion.identity);
+        //             distance = focusDistance;
+        //         } else {
+        //             // Our goal is to skewer the object. In other words, the object
+        //             // should maintain the same distance and orientation relative
+        //             // to the ray.
+        //             selected = hit.collider.gameObject;
+        //             distance = hit.distance;
+        //         }
 
-                // Change its color and opacity
-                // happens once right after you make a new selection
-                if (origMaterial == null) {
-                    Material selectedMaterial = selected.GetComponent<Renderer>().material;
-                    // store a copy
-                    origMaterial = new Material(selectedMaterial);
-                    // half-transparent red
-                    selectedMaterial.color = colorSelected;
-                }
+        //         // TODO: set color
+        //         // (part 5 of the reqs goes here)
+        //     } else {
+        //         // 2) We have (i.e. currently moving an object)
+        //         // We assume that the hit GameObject is the same as selected.
+        //         // (If this isn't true something horrible has broken)
+
+        //         // Change its color and opacity
+        //         // happens once right after you make a new selection
+        //         if (origMaterial == null) {
+        //             Material selectedMaterial = selected.GetComponent<Renderer>().material;
+        //             // store a copy
+        //             origMaterial = new Material(selectedMaterial);
+        //             // half-transparent red
+        //             selectedMaterial.color = colorSelected;
+        //         }
                 
 
-                // We now need to move the object.
-                Rigidbody rb = selected.GetComponent<Rigidbody>();
-                if (rb != null) {
-                    rb.isKinematic = true;
+        //         // We now need to move the object.
+        //         Rigidbody rb = selected.GetComponent<Rigidbody>();
+        //         if (rb != null) {
+        //             rb.isKinematic = true;
 
-                    // Move!
-                    Vector3 diff = rRay.GetPoint(distance) - rPrev.GetPoint(distance);
-                    // Velocity vector is new ray at distance - old ray at distance
-                    rb.MovePosition(diff);
-                    // For angle, we first calculate the straight up angle between the two rays
-                    // (we negate since we want to rotate in opposite direction)
-                    float angle = -Vector3.Angle(rPrev.GetPoint(distance), rRay.GetPoint(distance));
-                    // The angular velocity is this angle multiplied by the normalized version of our
-                    // diff vector (the idea being if we move one unit purely in one axis, that
-                    // axis gets all the angular velocity)
-                    Vector3 val = angle * Vector3.Normalize(diff);
-                    rb.MoveRotation(Quaternion.Euler(val.x, val.y, val.z));
-                }
-            }
-        } else {
-            if (selected != null) {
-                // Disable isKinematic on the selected object
-                Rigidbody rb = selected.GetComponent<Rigidbody>();
-                if (rb != null) {
-                    rb.isKinematic = false;
-                }
+        //             // Move!
+        //             Vector3 diff = rRay.GetPoint(distance) - rPrev.GetPoint(distance);
+        //             // Velocity vector is new ray at distance - old ray at distance
+        //             rb.MovePosition(diff);
+        //             // For angle, we first calculate the straight up angle between the two rays
+        //             // (we negate since we want to rotate in opposite direction)
+        //             float angle = -Vector3.Angle(rPrev.GetPoint(distance), rRay.GetPoint(distance));
+        //             // The angular velocity is this angle multiplied by the normalized version of our
+        //             // diff vector (the idea being if we move one unit purely in one axis, that
+        //             // axis gets all the angular velocity)
+        //             Vector3 val = angle * Vector3.Normalize(diff);
+        //             rb.MoveRotation(Quaternion.Euler(val.x, val.y, val.z));
+        //         }
+        //     }
+        // } else {
+        //     if (selected != null) {
+        //         // Disable isKinematic on the selected object
+        //         Rigidbody rb = selected.GetComponent<Rigidbody>();
+        //         if (rb != null) {
+        //             rb.isKinematic = false;
+        //         }
 
-                // restore original material
-                selected.GetComponent<Renderer>().material = origMaterial;
-                origMaterial = null;
-            }
-            selected = null;
-        }
+        //         // restore original material
+        //         selected.GetComponent<Renderer>().material = origMaterial;
+        //         origMaterial = null;
+        //     }
+        //     selected = null;
+        // }
     }
 
     // movement is limited to button; no joystick allowed
