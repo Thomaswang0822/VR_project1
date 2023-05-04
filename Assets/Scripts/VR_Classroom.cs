@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 using UnityEngine.XR;   // XR support
 
@@ -12,10 +13,11 @@ public class VR_Classroom : MonoBehaviour
     public Camera eyeCamera;
     public LineRenderer rRayRenderer;
     public GameObject chessPrefab;    // To indicate the teleport destination
-    
+
     // *********** private:
     private GameObject chess;
     private GameObject chair, desk;
+    private bool spawnChair = true;
     private bool useVR;
     private float step;
     // raycasting stuff
@@ -32,7 +34,7 @@ public class VR_Classroom : MonoBehaviour
     // change selected (a table or chair) to this half-transparent red
     private Color colorSelected = new Color(1f, 0f, 0f, 0.5f);
     // need to remember original to restore later
-    private Material? origMaterial;
+    private List<Material> origMaterials = new List<Material>();
     #nullable disable
 
     // *********** constants
@@ -43,8 +45,6 @@ public class VR_Classroom : MonoBehaviour
     private const float focusDistance = 3.0f;
     private const float eyeY = 1.5f;
     private const float chessY = 0.2f;
-
-    
 
     // Start is called before the first frame update
     void Start()
@@ -89,10 +89,12 @@ public class VR_Classroom : MonoBehaviour
     // for object manipulation
     void FixedUpdate() {
         // if (selected != null) {
+        //     // selected.transform.position = rRay.GetPoint(focusDistance);
         //     Rigidbody rb = selected.GetComponent<Rigidbody>();
         //     if (rb != null) {
-        //         rb.MovePosition(selected.transform.position + accXf * Time.deltaTime);
-        //         rb.MoveRotation(Quaternion.Euler(accRot.x, accRot.y, accRot.z));
+        //         // rb.MovePosition(selected.transform.position + accXf * Time.deltaTime);
+        //         rb.MovePosition(rRay.GetPoint(focusDistance));
+        //         // rb.MoveRotation(Quaternion.Euler(accRot.x, accRot.y, accRot.z));
 
         //         accXf = new Vector3(0.0f, 0.0f, 0.0f);
         //         accRot = new Vector3(0.0f, 0.0f, 0.0f);
@@ -169,7 +171,7 @@ public class VR_Classroom : MonoBehaviour
     void updateRightRay() {
         if (!useVR) {return;}
 
-        rPrev = rRay;
+        rPrev = new Ray(rRay.origin, rRay.direction);
 
         // Get controller position and rotation
         Vector3 controllerPosition = OVRInput.GetLocalControllerPosition(OVRInput.Controller.RTouch);
@@ -205,11 +207,18 @@ public class VR_Classroom : MonoBehaviour
     void manipulateObject() {
         if (!useVR) {return;}
 
-        // First, do object spawning test
-        if (OVRInput.Get(OVRInput.RawButton.LIndexTrigger)) {
-            chess.transform.position = rRay.GetPoint(focusDistance);
-            chess.transform.rotation = Quaternion.identity;
-            chess.SetActive(true);
+        // Switch which object we spawn
+        if (OVRInput.GetDown(OVRInput.Button.One)) {
+            spawnChair = !spawnChair;
+        }
+
+        // Do object spawning test
+        if (OVRInput.GetDown(OVRInput.RawButton.LIndexTrigger)) {
+            if (spawnChair) {
+                Instantiate(chairPrefab, rRay.GetPoint(focusDistance), Quaternion.identity);
+            } else {
+                Instantiate(tv, rRay.GetPoint(focusDistance), Quaternion.identity);
+            }
         }
 
         // Next, do manip test
@@ -218,46 +227,59 @@ public class VR_Classroom : MonoBehaviour
             selected = hit.collider.gameObject;
             distance = hit.distance;
 
-            // // Change its color and opacity
-            // // happens once right after you make a new selection
-            // if (origMaterial == null) {
-            //     Material selectedMaterial = selected.GetComponent<Renderer>().material;
-            //     // store a copy
-            //     origMaterial = new Material(selectedMaterial);
-            //     // half-transparent red
-            //     selectedMaterial.color = colorSelected;
-            // }
+            // Change its color and opacity
+            // happens once right after you make a new selection
+            if (!origMaterials.Any()) {
+                Material[] ogs = selected.GetComponent<Renderer>().materials;
+                Material[] news = new Material[ogs.Length];
+                for (int i = 0; i < ogs.Length; i++) {
+                    // push original material
+                    origMaterials.Add(new Material(ogs[i]));
+                    // half-transparent red
+                    news[i] = ogs[i];
+                    news[i].color = colorSelected;
+                }
+
+                // then, assign the whole array
+                selected.GetComponent<Renderer>().materials = news;
+            }
 
             // // We now need to move the object.
             // Rigidbody rb = selected.GetComponent<Rigidbody>();
-            // // if (rb != null && hit.collider.gameObject.CompareTag("Movable")) {
-            //     // // Move!
-            //     // Vector3 diff = rRay.GetPoint(distance) - rPrev.GetPoint(distance);
-            //     // // Velocity vector is new ray at distance - old ray at distance
-            //     // accXf += diff;
-            //     // // For angle, we first calculate the straight up angle between the two rays
-            //     // // (we negate since we want to rotate in opposite direction)
-            //     // float angle = -Vector3.Angle(rPrev.GetPoint(distance), rRay.GetPoint(distance));
-            //     // // The angular velocity is this angle multiplied by the normalized version of our
-            //     // // diff vector (the idea being if we move one unit purely in one axis, that
-            //     // // axis gets all the angular velocity)
-            //     // accRot += angle * Vector3.Normalize(diff);
+            // if (rb != null && hit.collider.gameObject.CompareTag("Movable")) {
+            //     // Move!
+            //     Vector3 diff = rRay.GetPoint(distance) - rPrev.GetPoint(distance);
+            //     // Velocity vector is new ray at distance - old ray at distance
+            //     accXf += diff;
+            //     // For angle, we first calculate the straight up angle between the two rays
+            //     // (we negate since we want to rotate in opposite direction)
+            //     float angle = -Vector3.Angle(rPrev.GetPoint(distance), rRay.GetPoint(distance));
+            //     // The angular velocity is this angle multiplied by the normalized version of our
+            //     // diff vector (the idea being if we move one unit purely in one axis, that
+            //     // axis gets all the angular velocity)
+            //     accRot += angle * Vector3.Normalize(diff);
 
             //     // FIXME: debug
-            //     // selected.transform.position = rRay.GetPoint(distance);
-            // // }
+            //     selected.transform.position = rRay.GetPoint(distance);
+            // }
 
-            selected.transform.position = rRay.GetPoint(focusDistance);
+            if (hit.collider.gameObject.CompareTag("Movable")) {
+                selected.transform.position = rRay.GetPoint(focusDistance);
+            }
         } else {
             if (selected != null) {
-                // restore original material
-                selected.GetComponent<Renderer>().material = origMaterial;
-                origMaterial = null;
-
-                Rigidbody rb = selected.GetComponent<Rigidbody>();
-                if (rb != null) {
-                    rb.isKinematic = false;
+                // restore original materials
+                Material[] ogs = new Material[origMaterials.Count];
+                for (int i = 0; i < origMaterials.Count; i++) {
+                    ogs[i] = origMaterials[i];
                 }
+                selected.GetComponent<Renderer>().materials = ogs;
+                origMaterials.Clear();
+
+                // Rigidbody rb = selected.GetComponent<Rigidbody>();
+                // if (rb != null) {
+                //     rb.isKinematic = false;
+                // }
             }
 
             selected = null;
