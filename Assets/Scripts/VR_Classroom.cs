@@ -29,8 +29,7 @@ public class VR_Classroom : MonoBehaviour
     private GameObject? selected;
     private float distance;
 
-    private Vector3 accXf = new Vector3(0.0f, 0.0f, 0.0f);
-    private Vector3 accRot = new Vector3(0.0f, 0.0f, 0.0f);
+    private bool selState = false;
 
     // change selected (a table or chair) to this half-transparent red
     private Color colorSelected = new Color(1f, 0f, 0f, 0.5f);
@@ -183,7 +182,7 @@ public class VR_Classroom : MonoBehaviour
             selected = hit.collider.gameObject;
             distance = hit.distance;
 
-            selected.GetComponent<Highlight>()?.ToggleHighlight(true);
+            // selected.GetComponent<Highlight>()?.ToggleHighlight(true);
         } 
     }
 
@@ -213,20 +212,19 @@ public class VR_Classroom : MonoBehaviour
         }
 
         // Next, do manip test
+        selState ^= OVRInput.GetDown(OVRInput.RawButton.LIndexTrigger);
         RaycastHit hit;
-        if (Physics.Raycast(rRay, out hit, maxDistance) && OVRInput.Get(OVRInput.RawButton.RIndexTrigger)) {
+        if (Physics.Raycast(rRay, out hit, maxDistance) && (OVRInput.Get(OVRInput.RawButton.RIndexTrigger) || selState)) {
             selected = hit.collider.gameObject;
             distance = hit.distance;
 
             selected.transform.position = rRay.GetPoint(focusDistance);
-            selected.GetComponent<Highlight>()?.ToggleHighlight(true);
+            // selected.GetComponent<Highlight>()?.ToggleHighlight(true);
 
             // Rotation check
-            if (OVRInput.Get(OVRInput.RawButton.LIndexTrigger)) {
+            if (OVRInput.Get(OVRInput.RawButton.RHandTrigger) && OVRInput.Get(OVRInput.RawButton.LHandTrigger)) {
                 hit.transform.Rotate(0, 0, 90.0f * Time.deltaTime);
-            }
-
-            if (OVRInput.Get(OVRInput.RawButton.RHandTrigger)) {
+            } else if (OVRInput.Get(OVRInput.RawButton.RHandTrigger)) {
                 // Scale up check
                 float scaleFactor = 1.0f + 0.5f * Time.deltaTime;
                 hit.transform.localScale = new Vector3(hit.transform.localScale.x * scaleFactor, hit.transform.localScale.y * scaleFactor, hit.transform.localScale.z * scaleFactor);
@@ -238,7 +236,7 @@ public class VR_Classroom : MonoBehaviour
         } else {
             if (selected != null) {
                 // restore original materials
-                selected.GetComponent<Highlight>()?.ToggleHighlight(false);
+                // selected.GetComponent<Highlight>()?.ToggleHighlight(false);
             }
 
             selected = null;
